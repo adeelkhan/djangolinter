@@ -113,17 +113,34 @@ class BlockTransExpression(Expression):
 		if self.offset == 0 and self.lineno == 0:
 			results.append({'violation':'django-blocktrans-missing-escape-filter', 'expression':self})
 			return
-		if self.lineno != 0:
-			prev_offset = self.start - self.offset
-			force_filter_start_pos = template_file.rfind('{%', prev_offset)
-			if force_filter_start_pos ==-1:
+		if self.lineno >= 0:
+			#prev_offset = self.start - self.offset
+			filter_start_pos = template_file.rfind('{%', 0, self.start)
+			if filter_start_pos ==-1:
 				results.append({'violation':'django-blocktrans-missing-escape-filter', 'expression':self})
 				return
-			force_filter_start_pos = template_file.rfind('%}', force_filter_start_pos)
-			force_escape_filter = template_file[force_filter_start_pos:force_filter_end_pos]
-			print force_escape_filter
 
-			# now check if the blocktrans applied filter is correct
+			filter_end_pos = template_file.find('%}', filter_start_pos)
+			if filter_end_pos > self.start:
+				results.append({'violation':'django-blocktrans-missing-escape-filter', 'expression':self})
+				return
+
+			escape_filter = template_file[filter_start_pos:filter_end_pos + 2]
+
+			if len(escape_filter) < len('{%filter force_escape%}'):
+				results.append({'violation':'django-blocktrans-missing-escape-filter', 'expression':self})
+				return
+
+			escape_filter = escape_filter[2:-2].strip()
+			escape_filter = escape_filter.split(' ')
+
+			if len(escape_filter) < 2:
+				results.append({'violation':'django-blocktrans-missing-escape-filter', 'expression':self})
+				return
+
+			if escape_filter[0] != 'filter' or escape_filter[1] != 'force_escape':
+				results.append({'violation':'django-blocktrans-missing-escape-filter', 'expression':self})
+				return
 
 def find_translation_expression(django_template, expressions):	
 	 
